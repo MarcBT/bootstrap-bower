@@ -2,7 +2,7 @@
  * angular-ui-bootstrap
  * http://angular-ui.github.io/bootstrap/
 
- * Version: 1.3.3 - 2016-05-22
+ * Version: 1.3.3-fix-tooltip - 2016-07-10
  * License: MIT
  */angular.module("ui.bootstrap", ["ui.bootstrap.tpls", "ui.bootstrap.collapse","ui.bootstrap.accordion","ui.bootstrap.alert","ui.bootstrap.buttons","ui.bootstrap.carousel","ui.bootstrap.dateparser","ui.bootstrap.isClass","ui.bootstrap.datepicker","ui.bootstrap.position","ui.bootstrap.datepickerPopup","ui.bootstrap.debounce","ui.bootstrap.dropdown","ui.bootstrap.stackedMap","ui.bootstrap.modal","ui.bootstrap.paging","ui.bootstrap.pager","ui.bootstrap.pagination","ui.bootstrap.tooltip","ui.bootstrap.popover","ui.bootstrap.progressbar","ui.bootstrap.rating","ui.bootstrap.tabs","ui.bootstrap.timepicker","ui.bootstrap.typeahead"]);
 angular.module("ui.bootstrap.tpls", ["uib/template/accordion/accordion-group.html","uib/template/accordion/accordion.html","uib/template/alert/alert.html","uib/template/carousel/carousel.html","uib/template/carousel/slide.html","uib/template/datepicker/datepicker.html","uib/template/datepicker/day.html","uib/template/datepicker/month.html","uib/template/datepicker/year.html","uib/template/datepickerPopup/popup.html","uib/template/modal/backdrop.html","uib/template/modal/window.html","uib/template/pager/pager.html","uib/template/pagination/pagination.html","uib/template/tooltip/tooltip-html-popup.html","uib/template/tooltip/tooltip-popup.html","uib/template/tooltip/tooltip-template-popup.html","uib/template/popover/popover-html.html","uib/template/popover/popover-template.html","uib/template/popover/popover.html","uib/template/progressbar/bar.html","uib/template/progressbar/progress.html","uib/template/progressbar/progressbar.html","uib/template/rating/rating.html","uib/template/tabs/tab.html","uib/template/tabs/tabset.html","uib/template/timepicker/timepicker.html","uib/template/typeahead/typeahead-match.html","uib/template/typeahead/typeahead-popup.html"]);
@@ -4649,17 +4649,27 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.s
               if (!positionTimeout) {
                 positionTimeout = $timeout(function() {
                   var ttPosition = $position.positionElements(element, tooltip, ttScope.placement, appendToBody);
+                  var initialHeight = angular.isDefined(tooltip.offsetHeight) ? tooltip.offsetHeight : tooltip.prop('offsetHeight');
+                  var elementPos = appendToBody ? $position.offset(element) : $position.position(element);
                   tooltip.css({ top: ttPosition.top + 'px', left: ttPosition.left + 'px' });
+                  var placementClasses = ttPosition.placement.split('-');
 
-                  if (!tooltip.hasClass(ttPosition.placement.split('-')[0])) {
+                  if (!tooltip.hasClass(placementClasses[0])) {
                     tooltip.removeClass(lastPlacement.split('-')[0]);
-                    tooltip.addClass(ttPosition.placement.split('-')[0]);
+                    tooltip.addClass(placementClasses[0]);
                   }
 
                   if (!tooltip.hasClass(options.placementClassPrefix + ttPosition.placement)) {
                     tooltip.removeClass(options.placementClassPrefix + lastPlacement);
                     tooltip.addClass(options.placementClassPrefix + ttPosition.placement);
                   }
+
+                  $timeout(function() {
+                    var currentHeight = angular.isDefined(tooltip.offsetHeight) ? tooltip.offsetHeight : tooltip.prop('offsetHeight');
+                    if (placementClasses.indexOf('top') !== -1 && initialHeight !== currentHeight) {
+                      tooltip.css({top: elementPos.top - currentHeight + 'px'});
+                    }
+                  }, 0, false);
 
                   // first time through tt element will have the
                   // uib-position-measure class or if the placement
@@ -4982,10 +4992,22 @@ angular.module('ui.bootstrap.tooltip', ['ui.bootstrap.position', 'ui.bootstrap.s
             };
 
             function prepTriggers() {
-              var val = attrs[prefix + 'Trigger'];
+              var showTriggers = [], hideTriggers = [];
+              var val = scope.$eval(attrs[prefix + 'Trigger']);
               unregisterTriggers();
 
-              triggers = getTriggers(val);
+              if (angular.isObject(val)) {
+                Object.keys(val).forEach(function(key) {
+                  showTriggers.push(key);
+                  hideTriggers.push(val[key]);
+                });
+                triggers = {
+                  show: showTriggers,
+                  hide: hideTriggers
+                };
+              } else {
+                triggers = getTriggers(val);
+              }
 
               if (triggers.show !== 'none') {
                 triggers.show.forEach(function(trigger, idx) {
